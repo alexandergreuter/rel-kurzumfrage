@@ -1,4 +1,4 @@
-import { Box, Center, Container, Flex, Text, VStack } from "@chakra-ui/react";
+import { Box, Container, Flex, Text } from "@chakra-ui/react";
 import { Outlet } from "react-router";
 
 export default function Root() {

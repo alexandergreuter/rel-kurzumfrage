@@ -9,7 +9,6 @@ import {
   Radio,
   Textarea,
   Container,
-  Center,
 } from "@chakra-ui/react";
 import { useLoaderData, useNavigate, useSearchParams } from "react-router-dom";
 import { Location } from "../../data/dto/location";

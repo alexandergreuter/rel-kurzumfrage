@@ -1,10 +1,8 @@
 import {
   CheckIcon,
-  ChevronRightIcon,
   ExternalLinkIcon,
 } from "@chakra-ui/icons";
 import {
-  Button,
   Center,
   Container,
   Link,
