@@ -43,6 +43,8 @@ jobs:
         run: npm install
       - name: Build React
         run: npm run build
+      - name: List Directories
+        run: ls -la
       - name: Setup Pages
         uses: actions/configure-pages@v3
       - name: Upload artifact
