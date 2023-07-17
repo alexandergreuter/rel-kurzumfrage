@@ -19,8 +19,6 @@ jobs:
     - uses: actions/checkout@v3
     - name: Build
       run: cargo build --verbose
-    - name: Change Workdir
-      run: cd service
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag rel-service:$(date +%s)
     - name: GHCR-Action
