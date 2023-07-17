@@ -12,11 +12,11 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-
+    defaults:
+      run:
+        working-directory: ./service
     steps:
     - uses: actions/checkout@v3
-    - name: Change Workdir
-      run: cd service
     - name: Build
       run: cargo build --verbose
     - name: Change Workdir
