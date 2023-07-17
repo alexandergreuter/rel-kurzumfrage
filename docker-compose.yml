@@ -1,0 +1,25 @@
+
+services:
+
+  rel-db:
+    image: postgres:15.3
+    container_name: rel-db
+    env:
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=rel
+      - POSTGRES_USER=rel-user
+    volumes:
+      - /var/lib/postgresql/data:/var/server/rel
+    networks:
+      - rel
+
+  rel-service:
+    build: ./service
+    container_name: rel-service
+    env:
+      - DATABASE_URL=postgres://rel-user:password@rel-db:5432/rel
+    networks:
+      - rel
+
+networks:
+  - rel

@@ -1,0 +1,20 @@
+[package]
+name = "rel-kurzumfrage-service"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+warp = "0.3.5"
+tokio = { version = "1.29.1", features = ["full"] }
+log = "0.4.0"
+env_logger = "0.10.0"
+diesel = { version = "2.1.0", features = ["uuid", "postgres"] }
+diesel-async = { version = "0.3.1", features = ["postgres", "deadpool"] }
+deadpool = "0.9.5"
+dotenvy = "0.15"
+diesel_migrations = "2.1.0"
+uuid = { version = "1.4.0", features = ["serde", "v4"] }
+serde = "1.0.171"
+anyhow = "1.0.71"
