@@ -53,17 +53,19 @@ async fn main() {
 
     let log = warp::log("warp_server");
 
-    log::info!("Listening on 127.0.0.1:8080");
+
 
     // create a new connection pool with the default config
     let database_url: String = expect_env_var("DATABASE_URL");
 
     run_migrations(&database_url);
-
     let config: AsyncDieselConnectionManager<diesel_async::AsyncPgConnection> =
         AsyncDieselConnectionManager::new(database_url);
     let pool: Pool<AsyncDieselConnectionManager<diesel_async::AsyncPgConnection>> =
         Pool::builder(config).build().expect("foo");
+    log::info!("Database ready");
+
+    log::info!("Listening on 127.0.0.1:8080");
 
     let routes = warp::any()
         .and(
@@ -92,7 +94,7 @@ async fn main() {
             .with(warp::cors().allow_any_origin().allow_methods(vec!["POST", "GET"]).allow_headers(vec!["content-type"]))
             .with(log),
     )
-    .run(([127, 0, 0, 1], 8080))
+    .run(([0, 0, 0, 0], 8080))
     .await
 }
 
