@@ -45,13 +45,16 @@ function LocationRow({ location }: { location: Location }) {
       width: 300,
       height: 300,
       data: frontendUrl + "/vote/" + location.id + "?agrees=" + agrees,
+      image: agrees ? "/ja.png" : "/nein.png",
       dotsOptions: {
-        color: "#4267b2",
-        type: "rounded",
+        type: "rounded"
+      },
+      cornersDotOptions:{
+        type: undefined
       },
       imageOptions: {
-        crossOrigin: "anonymous",
-        margin: 20,
+        margin: 10,
+        imageSize: agrees ? 0.25 : 0.5
       },
     }).download({
       name: encodeURIComponent(
