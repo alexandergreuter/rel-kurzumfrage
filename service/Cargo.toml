@@ -17,4 +17,9 @@ dotenvy = "0.15"
 diesel_migrations = "2.1.0"
 uuid = { version = "1.4.0", features = ["serde", "v4"] }
 serde = "1.0.171"
-anyhow = "1.0.71"
+anyhow = { version = "1.0.71", features = ["backtrace"] }
+rustls = "0.21.5"
+rustls-native-certs = "0.6.2"
+tokio-postgres = "0.7.7"
+tokio-postgres-rustls = "0.10.0"
+futures-util = "0.3.21"
