@@ -53,8 +53,6 @@ async fn main() {
 
     let log = warp::log("warp_server");
 
-
-
     // create a new connection pool with the default config
     let database_url: String = expect_env_var("DATABASE_URL");
 
@@ -69,19 +67,19 @@ async fn main() {
 
     let routes = warp::any()
         .and(
-            warp::get()
-                .and(warp::path!("locations"))
+            warp::path!("locations")
+                .and(warp::get())
                 .and(with_db(pool.clone()))
                 .and_then(get_locations)
                 .map(|it| reply::json(&it)),
         )
-        .or(warp::get()
-            .and(warp::path!("locations" / Uuid))
+        .or(warp::path!("locations" / Uuid)
+            .and(warp::get())
             .and(with_db(pool.clone()))
             .and_then(get_location)
             .map(|it: Location| reply::json(&it)))
-        .or(warp::post()
-            .and(warp::path!("votes"))
+        .or(warp::path!("votes")
+            .and(warp::post())
             .and(with_db(pool.clone()))
             .and(warp::body::json())
             .and(warp::header("user-agent"))
@@ -91,7 +89,12 @@ async fn main() {
     warp::serve(
         warp::any()
             .and(routes)
-            .with(warp::cors().allow_any_origin().allow_methods(vec!["POST", "GET"]).allow_headers(vec!["content-type"]))
+            .with(
+                warp::cors()
+                    .allow_any_origin()
+                    .allow_methods(vec!["POST", "GET"])
+                    .allow_headers(vec!["content-type"]),
+            )
             .with(log),
     )
     .run(([0, 0, 0, 0], 8080))
