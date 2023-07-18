@@ -1,4 +1,4 @@
-const baseUrl = "https://rel-kurzumfrage-service.alex-dev.net/";
+const baseUrl = "https://rel-kurzumfrage-service.alex-dev.net";
 
 export async function post<T>(path: string, body: any) {
   return await fetch(baseUrl + path, {
