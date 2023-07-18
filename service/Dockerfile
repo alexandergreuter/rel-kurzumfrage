@@ -5,7 +5,7 @@ COPY . .
 
 RUN cargo install --path .
 
-RUN sudo cp postgres.crt /usr/local/share/ca-certificates/postgres.crt
-RUN sudo update-ca-certificates
+RUN cp postgres.crt /usr/local/share/ca-certificates/postgres.crt
+RUN update-ca-certificates
 
 CMD ["service"]
