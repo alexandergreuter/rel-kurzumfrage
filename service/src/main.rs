@@ -1,7 +1,6 @@
-pub mod models;
 pub mod schema;
 
-use std::{convert::Infallible, env};
+use std::env;
 
 use anyhow::Context;
 use deadpool::managed::{Object, Pool};
@@ -22,6 +21,7 @@ use warp::{
 };
 
 type DBPool = Pool<AsyncDieselConnectionManager<diesel_async::AsyncPgConnection>>;
+type DBConn = Object<AsyncDieselConnectionManager<AsyncPgConnection>>;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
@@ -51,46 +51,41 @@ pub struct AddVoteBody {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     dotenv().expect("Failed to read env");
     env_logger::init();
 
     // create a new connection pool with the default config
     let database_url: String = expect_env_var("DATABASE_URL");
 
-    run_migrations(&database_url);
-    let config: AsyncDieselConnectionManager<diesel_async::AsyncPgConnection> =
-        AsyncDieselConnectionManager::new(database_url);
-    let pool: Pool<AsyncDieselConnectionManager<diesel_async::AsyncPgConnection>> =
-        Pool::builder(config).build().expect("foo");
-    log::info!("Database ready");
-
-    log::info!("Listening on 127.0.0.1:8080");
-
-    let routes = warp::any()
-        .and(
-            warp::path!("locations")
-                .and(warp::get())
-                .and(with_db(pool.clone()))
-                .and_then(get_locations)
-                .map(|it| reply::json(&it)),
-        )
-        .or(warp::path!("locations" / Uuid)
-            .and(warp::get())
-            .and(with_db(pool.clone()))
-            .and_then(get_location)
-            .map(|it: Location| reply::json(&it)))
-        .or(warp::path!("votes")
-            .and(warp::post())
-            .and(with_db(pool.clone()))
-            .and(warp::body::json())
-            .and(warp::header("user-agent"))
-            .and_then(add_vote)
-            .map(|it| reply::json(&it)));
+    log::info!("Setting up DB {}", database_url);
+    let pool = setup_db(&database_url)?;
+    log::info!("Database set up successfully");
 
     warp::serve(
         warp::any()
-            .and(routes)
+            .and(
+                warp::any()
+                    .and(
+                        warp::path!("locations")
+                            .and(warp::get())
+                            .and(with_db(pool.clone()))
+                            .and_then(get_locations)
+                            .map(|it| reply::json(&it)),
+                    )
+                    .or(warp::path!("locations" / Uuid)
+                        .and(warp::get())
+                        .and(with_db(pool.clone()))
+                        .and_then(get_location)
+                        .map(|it: Location| reply::json(&it)))
+                    .or(warp::path!("votes")
+                        .and(warp::post())
+                        .and(with_db(pool.clone()))
+                        .and(warp::body::json())
+                        .and(warp::header("user-agent"))
+                        .and_then(add_vote)
+                        .map(|it| reply::json(&it))),
+            )
             .recover(handle_rejection)
             .with(
                 warp::cors()
@@ -101,7 +96,9 @@ async fn main() {
             .with(warp::log("warp_server")),
     )
     .run(([0, 0, 0, 0], 8080))
-    .await
+    .await;
+
+    Ok(())
 }
 
 async fn handle_rejection(err: warp::Rejection) -> Result<impl warp::Reply, warp::Rejection> {
@@ -117,53 +114,64 @@ async fn handle_rejection(err: warp::Rejection) -> Result<impl warp::Reply, warp
     Err(err)
 }
 
-fn run_migrations(database_url: &str) {
-    PgConnection::establish(database_url)
-        .unwrap_or_else(|err| panic!("Failed to run migrations {}", err))
-        .run_pending_migrations(MIGRATIONS)
-        .unwrap_or_else(|err| panic!("Failed to run migrations {}", err));
+fn setup_db(database_url: &str) -> anyhow::Result<DBPool> {
+    let mut conn =
+        PgConnection::establish(database_url).context("Failed to establish database connection")?;
+
+    match conn.run_pending_migrations(MIGRATIONS) {
+        Ok(_) => log::info!("Database migrations ran successfully"),
+        Err(err) => return Err(anyhow::anyhow!("Failed to run migrations: {}", err)),
+    }
+
+    Pool::builder(AsyncDieselConnectionManager::new(database_url))
+        .build()
+        .context("Failed to init DB connection pool")
 }
 
 fn with_db(
     pool: Pool<AsyncDieselConnectionManager<diesel_async::AsyncPgConnection>>,
-) -> impl Filter<Extract = (DBPool,), Error = Infallible> + Clone {
-    warp::any().map(move || pool.clone())
+) -> impl Filter<Extract = (DBConn,), Error = Rejection> + Clone {
+    warp::any().and_then(move || {
+        let pool = pool.clone();
+        async move {
+            pool.get()
+                .await
+                .context("Failed to retrieve db connection from pool")
+                .err_as_reject()
+        }
+    })
 }
 
 fn expect_env_var(name: &str) -> String {
     env::var(name).unwrap_or_else(|_| panic!("Env variable: {} must be set", name))
 }
 
-async fn get_conn(
-    db: DBPool,
-) -> anyhow::Result<Object<AsyncDieselConnectionManager<AsyncPgConnection>>> {
-    db.get()
-        .await
-        .context("Failed to access db connection from pool")
-}
-
-async fn get_locations(db: DBPool) -> Result<Vec<Location>, Rejection> {
+async fn get_locations(mut conn: DBConn) -> Result<Vec<Location>, Rejection> {
     use self::schema::locations::dsl::*;
 
     locations
         .select(Location::as_select())
-        .load(&mut get_conn(db).await.err_as_reject()?)
+        .load(&mut conn)
         .await
         .err_as_reject()
 }
 
-async fn get_location(incoming_id: Uuid, db: DBPool) -> Result<Location, Rejection> {
+async fn get_location(incoming_id: Uuid, mut conn: DBConn) -> Result<Location, Rejection> {
     use self::schema::locations::dsl::*;
 
     locations
         .filter(id.eq(incoming_id))
         .select(Location::as_select())
-        .first(&mut get_conn(db).await.err_as_reject()?)
+        .first(&mut conn)
         .await
         .err_as_reject()
 }
 
-async fn add_vote(db: DBPool, body: AddVoteBody, user_agent: String) -> Result<(), Rejection> {
+async fn add_vote(
+    mut conn: DBConn,
+    body: AddVoteBody,
+    user_agent: String,
+) -> Result<(), Rejection> {
     diesel::insert_into(self::schema::votes::table)
         .values(NewVote {
             location_id: body.location_id,
@@ -171,7 +179,7 @@ async fn add_vote(db: DBPool, body: AddVoteBody, user_agent: String) -> Result<(
             comment: body.comment,
             user_agent,
         })
-        .execute(&mut get_conn(db).await.err_as_reject()?)
+        .execute(&mut conn)
         .await
         .err_as_reject()?;
 

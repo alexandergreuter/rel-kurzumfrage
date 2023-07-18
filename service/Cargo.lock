@@ -911,24 +911,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "436b050e76ed2903236f032a59761c1eb99e1b0aead2c257922771dab1fc8c78"
 
 [[package]]
-name = "rel-kurzumfrage-service"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "deadpool",
- "diesel",
- "diesel-async",
- "diesel_migrations",
- "dotenvy",
- "env_logger",
- "log",
- "serde",
- "tokio",
- "uuid",
- "warp",
-]
-
-[[package]]
 name = "retain_mut"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1040,6 +1022,24 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "service"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "deadpool",
+ "diesel",
+ "diesel-async",
+ "diesel_migrations",
+ "dotenvy",
+ "env_logger",
+ "log",
+ "serde",
+ "tokio",
+ "uuid",
+ "warp",
 ]
 
 [[package]]
