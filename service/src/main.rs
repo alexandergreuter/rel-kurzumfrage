@@ -3,6 +3,7 @@ pub mod schema;
 
 use std::{convert::Infallible, env};
 
+use anyhow::Context;
 use deadpool::managed::{Object, Pool};
 use diesel::{
     Connection, ExpressionMethods, Insertable, PgConnection, QueryDsl, Queryable, Selectable,
@@ -15,7 +16,10 @@ use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use dotenvy::dotenv;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use warp::{reply, Filter, Rejection};
+use warp::{
+    reject::{self},
+    reply, Filter, Rejection,
+};
 
 type DBPool = Pool<AsyncDieselConnectionManager<diesel_async::AsyncPgConnection>>;
 
@@ -50,8 +54,6 @@ pub struct AddVoteBody {
 async fn main() {
     dotenv().expect("Failed to read env");
     env_logger::init();
-
-    let log = warp::log("warp_server");
 
     // create a new connection pool with the default config
     let database_url: String = expect_env_var("DATABASE_URL");
@@ -89,16 +91,30 @@ async fn main() {
     warp::serve(
         warp::any()
             .and(routes)
+            .recover(handle_rejection)
             .with(
                 warp::cors()
                     .allow_any_origin()
                     .allow_methods(vec!["POST", "GET"])
                     .allow_headers(vec!["content-type"]),
             )
-            .with(log),
+            .with(warp::log("warp_server")),
     )
     .run(([0, 0, 0, 0], 8080))
     .await
+}
+
+async fn handle_rejection(err: warp::Rejection) -> Result<impl warp::Reply, warp::Rejection> {
+    if let Some(anyhow_err) = err.find::<AnyhowError>() {
+        log::error!("Internal server error: {:?}", anyhow_err.0);
+        return Ok(warp::reply::with_status(
+            "Internal server error",
+            warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+        ));
+    }
+
+    // If the custom rejection isn't found, return the original rejection
+    Err(err)
 }
 
 fn run_migrations(database_url: &str) {
@@ -120,8 +136,10 @@ fn expect_env_var(name: &str) -> String {
 
 async fn get_conn(
     db: DBPool,
-) -> Result<Object<AsyncDieselConnectionManager<AsyncPgConnection>>, Rejection> {
-    db.get().await.map_err(|_err| warp::reject::not_found())
+) -> anyhow::Result<Object<AsyncDieselConnectionManager<AsyncPgConnection>>> {
+    db.get()
+        .await
+        .context("Failed to access db connection from pool")
 }
 
 async fn get_locations(db: DBPool) -> Result<Vec<Location>, Rejection> {
@@ -129,9 +147,9 @@ async fn get_locations(db: DBPool) -> Result<Vec<Location>, Rejection> {
 
     locations
         .select(Location::as_select())
-        .load(&mut get_conn(db).await?)
+        .load(&mut get_conn(db).await.err_as_reject()?)
         .await
-        .map_err(|_err| warp::reject::not_found())
+        .err_as_reject()
 }
 
 async fn get_location(incoming_id: Uuid, db: DBPool) -> Result<Location, Rejection> {
@@ -140,9 +158,9 @@ async fn get_location(incoming_id: Uuid, db: DBPool) -> Result<Location, Rejecti
     locations
         .filter(id.eq(incoming_id))
         .select(Location::as_select())
-        .first(&mut get_conn(db).await?)
+        .first(&mut get_conn(db).await.err_as_reject()?)
         .await
-        .map_err(|_err| warp::reject::not_found())
+        .err_as_reject()
 }
 
 async fn add_vote(db: DBPool, body: AddVoteBody, user_agent: String) -> Result<(), Rejection> {
@@ -153,9 +171,30 @@ async fn add_vote(db: DBPool, body: AddVoteBody, user_agent: String) -> Result<(
             comment: body.comment,
             user_agent,
         })
-        .execute(&mut get_conn(db).await?)
+        .execute(&mut get_conn(db).await.err_as_reject()?)
         .await
-        .map_err(|_err| warp::reject::not_found())?;
+        .err_as_reject()?;
 
     Ok(())
+}
+
+#[derive(Debug)]
+struct AnyhowError(anyhow::Error);
+
+impl reject::Reject for AnyhowError {}
+
+trait IntoReject<T, E>
+where
+    E: Into<anyhow::Error>,
+{
+    fn err_as_reject(self) -> Result<T, Rejection>;
+}
+
+impl<T, E> IntoReject<T, E> for Result<T, E>
+where
+    E: Into<anyhow::Error>,
+{
+    fn err_as_reject(self) -> Result<T, Rejection> {
+        self.map_err(|e| reject::custom(AnyhowError(e.into())))
+    }
 }

@@ -1,4 +1,5 @@
 const baseUrl = "https://rel-kurzumfrage-service.alex-dev.net";
+// const baseUrl = "http://localhost:8080";
 
 export async function post<T>(path: string, body: any) {
   return await fetch(baseUrl + path, {
