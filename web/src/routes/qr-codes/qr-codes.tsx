@@ -44,7 +44,7 @@ function LocationRow({ location }: { location: Location }) {
     new QRCodeStyling({
       width: 300,
       height: 300,
-      data: frontendUrl + "/vote/" + location.id + "?agrees=" + agrees,
+      data: frontendUrl + "#/vote/" + location.id + "?agrees=" + agrees,
       image: agrees ? "/ja.png" : "/nein.png",
       dotsOptions: {
         type: "rounded"
