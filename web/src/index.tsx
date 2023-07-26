@@ -9,8 +9,12 @@ import QrCodes from "./routes/qr-codes/qr-codes";
 import { ChakraProvider, extendTheme } from "@chakra-ui/react";
 import { getLocation, getLocations } from "./data/api/location";
 import Voted from "./routes/voted/voted";
-import { hasAlreadyVotedForLocation } from "./data/local/voted-locations";
-import "./index.css"
+import {
+  addVotedForLocation,
+  hasAlreadyVotedForLocation,
+} from "./data/local/voted-locations";
+import "./index.css";
+import { submitVote } from "./data/api/vote";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
@@ -34,10 +38,21 @@ const router = createHashRouter([
         path: "vote/:locationId",
         element: <Vote />,
         loader: async (params: any) => {
-          const locationId = params.params.locationId
+          const locationId = params.params.locationId;
+          const agrees = new URL(params.request.url).searchParams.get("agrees");
 
           if (hasAlreadyVotedForLocation(locationId)) {
-            throw redirect("/voted");
+            return redirect("/voted");
+          }
+
+          if (agrees != null) {
+            await submitVote({
+              comment: null,
+              location_id: locationId,
+              agrees: !!(agrees as unknown as boolean),
+            });
+            addVotedForLocation(locationId);
+            return redirect("/voted");
           }
 
           return {
@@ -47,14 +62,14 @@ const router = createHashRouter([
       },
       {
         path: "voted",
-        element: <Voted />
+        element: <Voted />,
       },
       {
         path: "qrCodes",
         element: <QrCodes />,
         loader: async () => ({
-          locations: await getLocations()
-        })
+          locations: await getLocations(),
+        }),
       },
     ],
   },
