@@ -40,14 +40,14 @@ pub struct Location {
 pub struct NewVote {
     pub user_agent: String,
     pub agrees: bool,
-    pub comment: String,
+    pub comment: Option<String>,
     pub location_id: Uuid,
 }
 
 #[derive(Deserialize)]
 pub struct AddVoteBody {
     pub agrees: bool,
-    pub comment: String,
+    pub comment: Option<String>,
     pub location_id: Uuid,
 }
 
