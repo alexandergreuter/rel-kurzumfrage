@@ -64,7 +64,7 @@ export default function Vote() {
                 <Field as={Textarea} name="comment" />
               </FormControl>
               <Button isLoading={isSubmitting} type="submit" width="full">
-                Submit
+                Absenden
               </Button>
             </VStack>
           </form>
