@@ -19,7 +19,7 @@ export default function Voted() {
           <Text fontSize="xl" mt="3" textAlign="center">
             Erfolgreich gesendet, vielen Dank für dein Feeback!
           </Text>
-          <Link href="http://www.rel-suhr.ch/" isExternal>
+          <Link href="https://suhr.e-mitwirkung.ch/de/rel/participant/survey-document-groups/4187" isExternal>
             Ausführliche Umfrage <ExternalLinkIcon mx="2px" />
           </Link>
           <Link href="http://www.rel-suhr.ch/" isExternal>
