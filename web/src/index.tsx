@@ -49,7 +49,7 @@ const router = createHashRouter([
             await submitVote({
               comment: null,
               location_id: locationId,
-              agrees: !!(agrees as unknown as boolean),
+              agrees: agrees === "true",
             });
             addVotedForLocation(locationId);
             return redirect("/voted");
